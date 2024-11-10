@@ -1,0 +1,6 @@
+---
+title: "Homework 5"
+author: "Mia Isaacs"
+date: "2024-11-10"
+output: github_document
+---
