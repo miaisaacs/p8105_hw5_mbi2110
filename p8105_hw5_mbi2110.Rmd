@@ -4,3 +4,77 @@ author: "Mia Isaacs"
 date: "2024-11-10"
 output: github_document
 ---
+
+```{r}
+library(tidyverse)
+library(broom)
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+set.seed(123)
+```
+
+# Problem 2
+
+set design elements
+
+```{r}
+prob2_sim = function(samp_size, true_mean = 0, true_sd = 5, alpha = .05) {
+  
+  prob2_df =
+    tibble(
+      x = rnorm(samp_size, mean = true_mean, sd = true_sd)
+    )
+  
+  ttest_result = tidy(t.test(prob2_df[["x"]], mu = 0)) 
+  
+  out_df =
+    tibble(
+      estimated_mean = ttest_result |> pull(estimate),
+      p_value = ttest_result |> pull(p.value)
+    )
+  
+  return(out_df)
+}
+
+prob2_sim(samp_size = 30, true_mean = 1)
+```
+
+generate datasets
+
+```{r}
+n_sim = 5000
+samp_size = 30
+sigma = 5
+mu_vals = 0:6
+alpha = .05
+
+sim_results =
+  expand_grid(
+    true_mu = mu_vals,
+    iter = 1:n_sim
+  ) |> 
+  mutate(
+    ttest_result = map(true_mu, ~prob2_sim(samp_size = samp_size, true_mean = .x, true_sd = sigma))
+  ) |> 
+  unnest(ttest_result)
+```
+
+
+
+
+
+
+
+
+
+
+
