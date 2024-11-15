@@ -64,14 +64,130 @@ sim_results =
   ) |> 
   mutate(
     ttest_result = map(true_mu, ~prob2_sim(samp_size = samp_size, true_mean = .x, true_sd = sigma))
-  ) |> 
+  ) |>
   unnest(ttest_result)
 ```
 
+calculate power
 
+```{r}
+power_results =
+  sim_results |> 
+  group_by(true_mu) |> 
+  summarize(
+    power = mean(p_value < alpha),
+    avg_est_mu = mean(estimated_mean),
+    avg_est_reject = mean(estimated_mean[p_value < alpha])
+  )
+```
 
+plot power vs. true mean
 
+```{r}
+power_results |> 
+  ggplot(aes(x = true_mu, y = power)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Power vs. True Mean",
+    x = "True Value of Mu",
+    y = "Power"
+  )
+```
 
+plot estimated mean vs. true mean
+
+```{r}
+power_results |> 
+  ggplot(aes(x = true_mu)) +
+  geom_line(aes(y = avg_est_mu, color = "All Samples")) +
+  geom_point(aes(y = avg_est_mu, color = "All Samples")) +
+  geom_line(aes(y = avg_est_reject, color = "Rejected Samples Only")) +
+  geom_point(aes(y = avg_est_reject, color = "Rejected Samples Only")) +
+  labs(
+    title = "Average Estimate of Mean vs. True Mean",
+    x = "True Value of Mu",
+    y = "Average Estimate of Mu"
+  )
+```
+
+# Problem 3
+
+read in data
+
+```{r}
+homicide_data = read_csv("data/homicide-data.csv")
+
+summary(homicide_data)
+```
+
+create city state variable and summarize
+
+```{r}
+homicide_summary = 
+  homicide_data |> 
+  mutate(city_state = str_c(city, state, sep = ", ")) |> 
+  group_by(city_state) |> 
+  summarize(
+    total_homicides = n(),
+    unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
+  ) |> 
+  ungroup()
+```
+
+proportion unsolved in Baltimore
+
+```{r}
+baltimore_df =
+  homicide_summary |> 
+  filter(city_state == "Baltimore, MD") |> 
+  summarize(
+    test = list(prop.test(unsolved_homicides, total_homicides) |> 
+                  tidy())
+  ) |> 
+  unnest(test) |> 
+  select(estimate,conf.low, conf.high)
+
+baltimore_df
+```
+
+run for all cities
+
+```{r}
+all_cities_df =
+  homicide_summary |> 
+  group_by(city_state) |> 
+  summarize(
+    total_homicides = sum(total_homicides),
+    unsolved_homicides = sum(unsolved_homicides),
+    .groups = "drop"
+  ) |> 
+  mutate(
+    test_results = map2(unsolved_homicides, total_homicides, ~ tidy(prop.test(.x, .y)))
+  ) |> 
+  unnest(test_results) |> 
+  select(city_state, estimate, conf.low, conf.high)
+
+all_cities_df
+```
+
+plot with estimates for each city
+
+```{r}
+all_cities_df |> 
+  mutate(city_state = fct_reorder(city_state, estimate)) |> 
+  ggplot(aes(x = city_state, y = estimate, color = city_state)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.25, color = "darkgrey") +
+  coord_flip() +
+  labs(
+    title = "Proportion of Unsolved Homicides by City",
+    x = "City",
+    y = "Estimated Proportion of Unsolved Homicides"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
 
 
 
