@@ -22,12 +22,53 @@ theme_set(theme_minimal() + theme(legend.position = "bottom"))
 set.seed(123)
 ```
 
-# Problem 2
+# Problem 1 
 
-set design elements
+## write birthday function
 
 ```{r}
-prob2_sim = function(samp_size, true_mean = 0, true_sd = 5, alpha = .05) {
+bday_sim = function(n) {
+
+  bdays = sample(1:365, size = n, replace = TRUE)
+  
+  duplicate = length(unique(bdays)) < n
+
+  return(duplicate)
+  
+}
+
+bday_sim(10)
+```
+
+## run lots of times
+
+```{r}
+sim_res = 
+  expand_grid(
+    n = 2:50,
+    iter = 1:10000
+  ) |> 
+  mutate(res = map_lgl(n, bday_sim)) |> 
+  group_by(n) |> 
+  summarize(prob = mean(res))
+```
+
+## make plot showing prob by group size
+
+```{r}
+sim_res |> 
+  ggplot(aes(x = n, y = prob )) + 
+  geom_line()
+```
+
+As group size increases, the probability that at least two people in the group share the same birthday also increases. With a group size of 50, there is almost a 100% chance that two people will share the same birthday.
+
+# Problem 2
+
+## set design elements
+
+```{r}
+prob2_sim = function(samp_size = 30, true_mean = 0, true_sd = 5, alpha = .05) {
   
   prob2_df =
     tibble(
@@ -48,29 +89,33 @@ prob2_sim = function(samp_size, true_mean = 0, true_sd = 5, alpha = .05) {
 prob2_sim(samp_size = 30, true_mean = 1)
 ```
 
-generate datasets
+## generate datasets
 
 ```{r}
-n_sim = 5000
-samp_size = 30
-sigma = 5
-mu_vals = 0:6
-alpha = .05
-
 sim_results =
   expand_grid(
-    true_mu = mu_vals,
-    iter = 1:n_sim
+    true_mu = 0:6,
+    iter = 1:5000
   ) |> 
   mutate(
-    ttest_result = map(true_mu, ~prob2_sim(samp_size = samp_size, true_mean = .x, true_sd = sigma))
+    ttest_result = map(true_mu, ~prob2_sim(samp_size = 30, true_mean = .x, true_sd = 5))
   ) |>
   unnest(ttest_result)
+
+sim_results |> 
+  group_by(true_mu) |> 
+  summarize(
+    avg_mean = mean(estimated_mean, na.rm = TRUE),
+    p_value = mean(p_value,  na.rm = TRUE),
+    .groups = "drop"
+  )
 ```
 
-calculate power
+## calculate power
 
 ```{r}
+alpha = 0.05 
+
 power_results =
   sim_results |> 
   group_by(true_mu) |> 
@@ -81,7 +126,7 @@ power_results =
   )
 ```
 
-plot power vs. true mean
+## plot power vs. true mean
 
 ```{r}
 power_results |> 
@@ -95,7 +140,9 @@ power_results |>
   )
 ```
 
-plot estimated mean vs. true mean
+As effect size increases, power increases. We see an increase in ability to detect a significant difference as the mean value moves further away from the null value of 0.
+
+## plot estimated mean vs. true mean
 
 ```{r}
 power_results |> 
@@ -111,9 +158,11 @@ power_results |>
   )
 ```
 
+The average estimated mean among tests in which the null was rejected differs from the true value between the values of 0 and 4, where the average estimates are higher than the true values. This is because the power to detect a significant difference is lower when our effect size is lower, therefore a larger difference between the estimated value and the true value is required to reject the null hypothesis at lower effect sizes.
+
 # Problem 3
 
-read in data
+## read in data
 
 ```{r}
 homicide_data = read_csv("data/homicide-data.csv")
@@ -121,7 +170,9 @@ homicide_data = read_csv("data/homicide-data.csv")
 summary(homicide_data)
 ```
 
-create city state variable and summarize
+The homicide_data includes `r nrow(homicide_data)` observations and `r ncol(homicide_data)` variables. Variables include city id, reported date, victim first and last name, race, age, sex, city, state, latitude, longitude, and disposition.
+
+## create city state variable and summarize
 
 ```{r}
 homicide_summary = 
@@ -135,7 +186,7 @@ homicide_summary =
   ungroup()
 ```
 
-proportion unsolved in Baltimore
+## proportion unsolved in Baltimore
 
 ```{r}
 baltimore_df =
@@ -151,7 +202,7 @@ baltimore_df =
 baltimore_df
 ```
 
-run for all cities
+## run for all cities
 
 ```{r}
 all_cities_df =
@@ -171,7 +222,7 @@ all_cities_df =
 all_cities_df
 ```
 
-plot with estimates for each city
+## plot with estimates for each city
 
 ```{r}
 all_cities_df |> 
